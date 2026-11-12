@@ -1,0 +1,37 @@
+name: pyflink-lab
+
+x-flink: &flink
+  build: .
+  image: pyflink-lab:2.3.0
+  # PyFlink 2.3.0 publishes Linux x86-64 wheels; Docker Desktop emulates on M1/M2/M3/M4.
+  platform: linux/amd64
+  volumes:
+    - ./process.py:/opt/flink/usrlib/process.py:ro
+  environment:
+    FLINK_PROPERTIES: |
+      jobmanager.rpc.address: jobmanager
+      rest.address: jobmanager
+      rest.bind-address: 0.0.0.0
+      taskmanager.numberOfTaskSlots: 2
+      python.client.executable: /opt/pyflink/bin/python
+      python.executable: /opt/pyflink/bin/python
+
+services:
+  jobmanager:
+    <<: *flink
+    command: jobmanager
+    ports:
+      - "127.0.0.1:${FLINK_UI_PORT:-8081}:8081"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/overview', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  taskmanager:
+    <<: *flink
+    command: taskmanager
+    depends_on:
+      jobmanager:
+        condition: service_healthy
