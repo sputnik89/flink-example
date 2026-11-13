@@ -1,4 +1,4 @@
-"""Streaming word count for the Python version of the CUHK Flink lab."""
+"""Streaming word count with PyFlink."""
 
 import argparse
 import re
@@ -9,7 +9,7 @@ from pyflink.datastream import DataStream, RuntimeExecutionMode, StreamExecution
 from pyflink.table import StreamTableEnvironment
 
 
-# The first five sentences used by the original lab's CustomSource (Hamlet).
+# Sample sentences from Hamlet.
 SENTENCES = (
     "To be, or not to be, that is the question.",
     "Whether 'tis nobler in the mind to suffer",
@@ -20,14 +20,14 @@ SENTENCES = (
 
 
 def split_words(sentence):
-    """Emit (word, 1) records; match Java's lowercase + ASCII \\W+ splitting."""
+    """Emit one lowercase (word, 1) record for each word."""
     for word in re.split(r"\W+", sentence.lower(), flags=re.ASCII):
         if word:
             yield word, 1
 
 
 def word_counts(sentences: DataStream) -> DataStream:
-    """The same flatMap -> keyBy -> sum pipeline as the Java lab."""
+    """Split sentences into words and maintain a running count per word."""
     return (
         sentences
         .flat_map(split_words, output_type=Types.TUPLE([Types.STRING(), Types.LONG()]))
